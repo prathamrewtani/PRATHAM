@@ -26,7 +26,6 @@ function setFullscreenButtonState(button) {
   setButtonIcon(button, "fa-solid fa-expand", "Open fullscreen");
 }
 
-const isMobile = window.innerWidth <= 768;
 let isScrolling = false;
 let activeVideo = null;
 
@@ -37,18 +36,6 @@ window.addEventListener("scroll", () => {
     isScrolling = false;
   }, 150);
 });
-
-function updateInactiveVideos(active) {
-  document.querySelectorAll(".video-container").forEach(container => {
-    const vid = container.querySelector("video");
-
-    if (!active || vid === active) {
-      container.classList.remove("inactive");
-    } else {
-      container.classList.add("inactive");
-    }
-  });
-}
 
 document.addEventListener("DOMContentLoaded", () => {
   const watchBtn = document.getElementById("watchBtn");
@@ -73,77 +60,6 @@ document.addEventListener("DOMContentLoaded", () => {
       sendMail();
     });
   }
-
-  document.querySelectorAll(".video-container").forEach(container => {
-    const video = container.querySelector("video");
-    const btn = container.querySelector(".mute-btn");
-
-    if (!video) return;
-
-    video.pause();
-    video.currentTime = 0;
-    container.classList.add("video-paused");
-    setMuteButtonState(btn, true);
-
-    const playPauseHandler = (e) => {
-      e.preventDefault();
-
-      if (isScrolling || isExploded) return;
-
-      document.querySelectorAll(".video-container video").forEach(v => {
-        if (v !== video) {
-          v.pause();
-          v.muted = true;
-
-          const c = v.closest(".video-container");
-          c.classList.remove("video-playing");
-          c.classList.add("video-paused");
-
-          const muteBtn = c.querySelector(".mute-btn");
-          setMuteButtonState(muteBtn, true);
-        }
-      });
-
-      if (video.paused) {
-        video.muted = false;
-        video.volume = 0;
-
-        video.play().catch(() => {});
-        fadeVolume(video, 1, 400);
-
-        container.classList.add("video-playing");
-        container.classList.remove("video-paused");
-        setMuteButtonState(btn, false);
-
-        activeVideo = video;
-        updateInactiveVideos(video);
-      } else {
-        video.pause();
-        container.classList.add("video-paused");
-        container.classList.remove("video-playing");
-        setMuteButtonState(btn, true);
-
-        activeVideo = null;
-        updateInactiveVideos(null);
-      }
-    };
-
-    if (isMobile) {
-      container.addEventListener("touchstart", playPauseHandler);
-    } else {
-      container.addEventListener("click", playPauseHandler);
-    }
-
-    btn?.addEventListener("click", (e) => {
-      e.stopPropagation();
-      video.muted = !video.muted;
-      setMuteButtonState(btn, video.muted);
-    });
-
-    btn?.addEventListener("touchstart", (e) => {
-      e.stopPropagation();
-    });
-  });
 
   document.querySelectorAll(".breakdown-video").forEach(container => {
     const video = container.querySelector("video");
@@ -233,13 +149,10 @@ const observer = new IntersectionObserver((entries) => {
 
     if (!entry.isIntersecting) {
       video.pause();
+      video.muted = true;
 
-      const container = video.closest(".video-container, .breakdown-video");
-      container?.classList.remove("video-playing");
-      container?.classList.add("video-paused");
-
-      const btn = container?.querySelector(".mute-btn, .breakdown-mute-btn");
-      setMuteButtonState(btn, true);
+      const container = getInteractiveVideoContainer(video);
+      syncPausedContainer(container);
     }
   });
 }, { threshold: 0.3 });
@@ -352,14 +265,6 @@ cards.forEach(card => {
   observer3.observe(card);
 });
 
-const firstVideo = document.querySelector(".video-container video");
-if (firstVideo) {
-  firstVideo.muted = true;
-  firstVideo.play().catch(()=>{});
-}
-
-
-
 /* ================= REVEAL SYSTEM ================= */
 
 const REVEAL_CLOSE_DELAY = 420;
@@ -393,10 +298,16 @@ function pauseAllVideos(except = null) {
   document.querySelectorAll("video").forEach((video) => {
     if (video !== except) {
       video.pause();
+      video.muted = true;
+      syncPausedContainer(getInteractiveVideoContainer(video));
     }
   });
 
   activeVideo = except;
+}
+
+function getInteractiveVideoContainer(video) {
+  return video?.closest(".main-video-box, .video-box, .breakdown-video, .video-container") || null;
 }
 
 function getMainBox(category) {
@@ -417,6 +328,21 @@ function getPlayButton(box) {
 
 function getMuteButton(box) {
   return box?.querySelector(".mute-btn, .main-mute") || null;
+}
+
+function syncPausedContainer(container) {
+  if (!container) return;
+
+  container.classList.remove("video-playing");
+  container.classList.add("video-paused");
+
+  if (container.matches(".main-video-box, .video-box")) {
+    syncBoxUi(container);
+    return;
+  }
+
+  const btn = container.querySelector(".mute-btn, .main-mute, .breakdown-mute-btn");
+  setMuteButtonState(btn, true);
 }
 
 function setPlayButtonState(button, isPlaying) {
@@ -560,11 +486,14 @@ function createSwapGhost(box, rect) {
   ghost.className = "swap-ghost";
   ghost.style.borderRadius = computedStyle.borderRadius;
   ghost.style.boxShadow = computedStyle.boxShadow;
+  ghost.style.setProperty("--swap-duration", `${SWAP_ANIMATION_DURATION}ms`);
   ghost.style.transition = [
-    `top ${SWAP_ANIMATION_DURATION}ms ease-in-out`,
-    `left ${SWAP_ANIMATION_DURATION}ms ease-in-out`,
-    `width ${SWAP_ANIMATION_DURATION}ms ease-in-out`,
-    `height ${SWAP_ANIMATION_DURATION}ms ease-in-out`
+    `top ${SWAP_ANIMATION_DURATION}ms cubic-bezier(0.22, 1, 0.36, 1)`,
+    `left ${SWAP_ANIMATION_DURATION}ms cubic-bezier(0.22, 1, 0.36, 1)`,
+    `width ${SWAP_ANIMATION_DURATION}ms cubic-bezier(0.22, 1, 0.36, 1)`,
+    `height ${SWAP_ANIMATION_DURATION}ms cubic-bezier(0.22, 1, 0.36, 1)`,
+    `transform ${SWAP_ANIMATION_DURATION}ms cubic-bezier(0.22, 1, 0.36, 1)`,
+    `box-shadow ${SWAP_ANIMATION_DURATION}ms cubic-bezier(0.22, 1, 0.36, 1)`
   ].join(", ");
   ghost.style.animationDuration = `${SWAP_ANIMATION_DURATION}ms`;
 
@@ -745,6 +674,11 @@ async function swapMainVideo(category, clickedBox) {
   let swapGhosts = null;
 
   try {
+    await Promise.all([
+      waitForVideoReady(mainVideo, 220),
+      waitForVideoReady(clickedVideo, 220)
+    ]);
+
     const swapAnimation = animateSwap(mainBox, clickedBox);
 
     mainVideo.setAttribute("src", clickedSrc);

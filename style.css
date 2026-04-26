@@ -650,11 +650,31 @@ section {
 .swap-ghost {
   position: fixed;
   overflow: hidden;
-  background: #050505;
+  background: #09050f;
   pointer-events: none;
   z-index: 85;
-  will-change: top, left, width, height;
-  transform: translateZ(0);
+  isolation: isolate;
+  backface-visibility: hidden;
+  transform: translateZ(0) scale(1);
+  transform-origin: center center;
+  will-change: top, left, width, height, transform, box-shadow;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.swap-ghost::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    120deg,
+    transparent 18%,
+    rgba(255, 255, 255, 0.16) 48%,
+    transparent 78%
+  );
+  opacity: 0;
+  transform: translate3d(-20%, 0, 0);
+  mix-blend-mode: screen;
+  pointer-events: none;
 }
 
 .swap-ghost-media {
@@ -662,13 +682,19 @@ section {
   height: 100%;
   display: block;
   object-fit: cover;
-  background: #050505;
+  background: #09050f;
+  transform: scale(1.001);
 }
 
 .swap-ghost.is-moving {
-  animation-name: swapGhostMotionBlur;
-  animation-timing-function: ease-in-out;
+  animation-name: swapGhostGlide;
+  animation-duration: var(--swap-duration, 380ms);
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
   animation-fill-mode: both;
+}
+
+.swap-ghost.is-moving::after {
+  animation: swapGhostSheen var(--swap-duration, 380ms) cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .swap-hidden {
@@ -856,25 +882,43 @@ section {
   }
 }
 
-@keyframes swapGhostMotionBlur {
+@keyframes swapGhostGlide {
   0% {
-    filter: blur(0px);
     transform: translateZ(0) scale(1);
+    box-shadow:
+      0 24px 60px rgba(0, 0, 0, 0.35),
+      0 0 0 1px rgba(255, 255, 255, 0.02);
   }
 
-  20% {
-    filter: blur(8px) brightness(1.06);
-    transform: translateZ(0) scale(1.015);
-  }
-
-  80% {
-    filter: blur(8px) brightness(1.06);
-    transform: translateZ(0) scale(1.015);
+  45% {
+    transform: translateZ(0) scale(1.028);
+    box-shadow:
+      0 38px 95px rgba(0, 0, 0, 0.42),
+      0 0 0 1px rgba(255, 255, 255, 0.08),
+      0 0 28px rgba(143, 0, 255, 0.14);
   }
 
   100% {
-    filter: blur(0px);
     transform: translateZ(0) scale(1);
+    box-shadow:
+      0 24px 60px rgba(0, 0, 0, 0.35),
+      0 0 0 1px rgba(255, 255, 255, 0.02);
+  }
+}
+
+@keyframes swapGhostSheen {
+  0% {
+    opacity: 0;
+    transform: translate3d(-24%, 0, 0);
+  }
+
+  38% {
+    opacity: 0.55;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate3d(24%, 0, 0);
   }
 }
 
