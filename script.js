@@ -26,6 +26,15 @@ function setFullscreenButtonState(button) {
   setButtonIcon(button, "fa-solid fa-expand", "Open fullscreen");
 }
 
+function getActiveFullscreenElement() {
+  return (
+    document.fullscreenElement ||
+    document.webkitFullscreenElement ||
+    document.msFullscreenElement ||
+    null
+  );
+}
+
 let isScrolling = false;
 let activeVideo = null;
 
@@ -65,6 +74,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const video = container.querySelector("video");
     const btn = container.querySelector(".breakdown-mute-btn");
     const fsBtn = container.querySelector(".fullscreen-btn");
+    const slider = container.querySelector(".breakdown-volume-slider");
 
     if (!video) return;
 
@@ -72,9 +82,11 @@ document.addEventListener("DOMContentLoaded", () => {
     container.classList.add("video-paused");
     setMuteButtonState(btn, true);
     setFullscreenButtonState(fsBtn);
+    if (slider) slider.value = 0;
 
     container.addEventListener("click", (e) => {
-      if (e.target.closest("button")) return;
+      if (e.target.closest("button") || e.target.closest("input")) return;
+      if (getActiveFullscreenElement() === video) return;
 
       document.querySelectorAll(".breakdown-video video").forEach(v => {
         if (v !== video) {
@@ -85,6 +97,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
           const b = c.querySelector(".breakdown-mute-btn");
           setMuteButtonState(b, true);
+          const s = c.querySelector(".breakdown-volume-slider");
+          if (s) s.value = 0;
         }
       });
 
@@ -94,6 +108,7 @@ document.addEventListener("DOMContentLoaded", () => {
         container.classList.add("video-playing");
         container.classList.remove("video-paused");
         setMuteButtonState(btn, false);
+        if (slider) slider.value = video.volume;
       } else {
         video.pause();
         container.classList.add("video-paused");
@@ -104,7 +119,25 @@ document.addEventListener("DOMContentLoaded", () => {
     btn?.addEventListener("click", (e) => {
       e.stopPropagation();
       video.muted = !video.muted;
+      if (!video.muted && video.volume === 0) video.volume = 1;
       setMuteButtonState(btn, video.muted);
+      if (slider) slider.value = video.muted ? 0 : video.volume;
+    });
+
+    slider?.addEventListener("input", (e) => {
+      e.stopPropagation();
+      video.volume = slider.value;
+      if (slider.value > 0 && video.muted) {
+        video.muted = false;
+        setMuteButtonState(btn, false);
+      } else if (slider.value == 0 && !video.muted) {
+        video.muted = true;
+        setMuteButtonState(btn, true);
+      }
+    });
+
+    slider?.addEventListener("click", (e) => {
+      e.stopPropagation();
     });
 
     fsBtn?.addEventListener("click", (e) => {
@@ -130,10 +163,11 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 document.addEventListener("fullscreenchange", () => {
-  document.querySelectorAll(".breakdown-video").forEach(container => {
+  document.querySelectorAll(".breakdown-video, .main-video-box").forEach(container => {
     const video = container.querySelector("video");
+    const fullscreenElement = getActiveFullscreenElement();
 
-    if (document.fullscreenElement === video) {
+    if (fullscreenElement === video) {
       container.classList.add("fullscreen");
       video.controls = true;
     } else {
@@ -268,7 +302,6 @@ cards.forEach(card => {
 /* ================= REVEAL SYSTEM ================= */
 
 const REVEAL_CLOSE_DELAY = 420;
-const SWAP_ANIMATION_DURATION = 380;
 let activeCategory = null;
 let isExploded = false;
 let interactionLocked = false;
@@ -277,20 +310,29 @@ let isSwapAnimating = false;
 let lastScrollY = window.scrollY;
 
 function getRevealPositions() {
-  if (window.innerWidth <= 768) {
+  if (window.innerWidth <= 640) {
     return [
-      { x: "-29vw", y: "-23vh", scale: "0.8" },
-      { x: "29vw", y: "-23vh", scale: "0.8" },
-      { x: "-29vw", y: "23vh", scale: "0.8" },
-      { x: "29vw", y: "23vh", scale: "0.8" }
+      { x: "-38vw", y: "-18vh", scale: "0.82" },
+      { x: "-38vw", y: "18vh", scale: "0.82" },
+      { x: "38vw", y: "18vh", scale: "0.82" },
+      { x: "38vw", y: "-18vh", scale: "0.82" }
+    ];
+  }
+
+  if (window.innerWidth <= 1100) {
+    return [
+      { x: "-30vw", y: "-18vh", scale: "0.88" },
+      { x: "-30vw", y: "18vh", scale: "0.88" },
+      { x: "30vw", y: "18vh", scale: "0.88" },
+      { x: "30vw", y: "-18vh", scale: "0.88" }
     ];
   }
 
   return [
-    { x: "-27vw", y: "-21vh", scale: "0.9" },
-    { x: "27vw", y: "-21vh", scale: "0.9" },
-    { x: "-27vw", y: "21vh", scale: "0.9" },
-    { x: "27vw", y: "21vh", scale: "0.9" }
+    { x: "-29vw", y: "-19vh", scale: "0.92" },
+    { x: "-29vw", y: "19vh", scale: "0.92" },
+    { x: "29vw", y: "19vh", scale: "0.92" },
+    { x: "29vw", y: "-19vh", scale: "0.92" }
   ];
 }
 
@@ -370,6 +412,17 @@ function syncBoxUi(box) {
 
   setPlayButtonState(getPlayButton(box), !video.paused);
   setMuteButtonState(getMuteButton(box), video.muted);
+
+  const slider = box.querySelector(".main-volume-slider");
+  if (slider) {
+    slider.value = video.muted ? 0 : video.volume;
+  }
+
+  if (!video.paused) {
+    box.classList.add("video-playing");
+  } else {
+    box.classList.remove("video-playing");
+  }
 }
 
 function syncCategoryUi(category) {
@@ -429,121 +482,6 @@ function waitForVideoReady(video, timeout = 900) {
   });
 }
 
-function captureVideoFrame(video) {
-  if (!video || video.readyState < 2) {
-    return "";
-  }
-
-  const width = video.videoWidth || 360;
-  const height = video.videoHeight || 640;
-  const canvas = document.createElement("canvas");
-  const context = canvas.getContext("2d");
-
-  if (!context) {
-    return "";
-  }
-
-  canvas.width = width;
-  canvas.height = height;
-
-  try {
-    context.drawImage(video, 0, 0, width, height);
-    return canvas.toDataURL("image/png");
-  } catch {
-    return "";
-  }
-}
-
-function cloneGhostControl(control) {
-  const ghostControl = control?.cloneNode(true);
-
-  if (!ghostControl) {
-    return null;
-  }
-
-  ghostControl.disabled = true;
-  ghostControl.tabIndex = -1;
-  ghostControl.setAttribute("aria-hidden", "true");
-
-  return ghostControl;
-}
-
-function positionSwapGhost(ghost, rect) {
-  ghost.style.top = `${rect.top}px`;
-  ghost.style.left = `${rect.left}px`;
-  ghost.style.width = `${rect.width}px`;
-  ghost.style.height = `${rect.height}px`;
-}
-
-function createSwapGhost(box, rect) {
-  const ghost = document.createElement("div");
-  const snapshot = captureVideoFrame(getVideo(box));
-  const computedStyle = window.getComputedStyle(box);
-  const media = document.createElement(snapshot ? "img" : "div");
-  const playGhost = cloneGhostControl(getPlayButton(box));
-  const muteGhost = cloneGhostControl(getMuteButton(box));
-
-  ghost.className = "swap-ghost";
-  ghost.style.borderRadius = computedStyle.borderRadius;
-  ghost.style.boxShadow = computedStyle.boxShadow;
-  ghost.style.setProperty("--swap-duration", `${SWAP_ANIMATION_DURATION}ms`);
-  ghost.style.transition = [
-    `top ${SWAP_ANIMATION_DURATION}ms cubic-bezier(0.22, 1, 0.36, 1)`,
-    `left ${SWAP_ANIMATION_DURATION}ms cubic-bezier(0.22, 1, 0.36, 1)`,
-    `width ${SWAP_ANIMATION_DURATION}ms cubic-bezier(0.22, 1, 0.36, 1)`,
-    `height ${SWAP_ANIMATION_DURATION}ms cubic-bezier(0.22, 1, 0.36, 1)`,
-    `transform ${SWAP_ANIMATION_DURATION}ms cubic-bezier(0.22, 1, 0.36, 1)`,
-    `box-shadow ${SWAP_ANIMATION_DURATION}ms cubic-bezier(0.22, 1, 0.36, 1)`
-  ].join(", ");
-  ghost.style.animationDuration = `${SWAP_ANIMATION_DURATION}ms`;
-
-  positionSwapGhost(ghost, rect);
-
-  media.className = "swap-ghost-media";
-
-  if (snapshot) {
-    media.src = snapshot;
-    media.alt = "";
-  }
-
-  ghost.append(media);
-
-  if (playGhost) {
-    ghost.append(playGhost);
-  }
-
-  if (muteGhost) {
-    ghost.append(muteGhost);
-  }
-
-  return ghost;
-}
-
-function animateSwap(mainBox, clickedBox) {
-  const mainRect = mainBox.getBoundingClientRect();
-  const clickedRect = clickedBox.getBoundingClientRect();
-  const mainGhost = createSwapGhost(mainBox, mainRect);
-  const clickedGhost = createSwapGhost(clickedBox, clickedRect);
-
-  document.body.append(mainGhost, clickedGhost);
-  mainBox.classList.add("swap-hidden");
-  clickedBox.classList.add("swap-hidden");
-
-  mainGhost.getBoundingClientRect();
-  clickedGhost.getBoundingClientRect();
-
-  mainGhost.classList.add("is-moving");
-  clickedGhost.classList.add("is-moving");
-  positionSwapGhost(mainGhost, clickedRect);
-  positionSwapGhost(clickedGhost, mainRect);
-
-  return new Promise((resolve) => {
-    window.setTimeout(() => {
-      resolve({ mainGhost, clickedGhost });
-    }, SWAP_ANIMATION_DURATION);
-  });
-}
-
 function pulseMainBox(box) {
   if (!box) return;
 
@@ -596,10 +534,9 @@ function openCategory(category, afterOpen = null) {
     return false;
   }
 
-  storeMainBoxOrigin(category);
-
   activeCategory = category;
   isExploded = true;
+  storeMainBoxOrigin(category);
 
   category.classList.remove("closing");
   category.classList.add("active");
@@ -671,18 +608,55 @@ async function swapMainVideo(category, clickedBox) {
   clickedVideo.pause();
   syncCategoryUi(category);
 
-  let swapGhosts = null;
-
   try {
-    await Promise.all([
-      waitForVideoReady(mainVideo, 220),
-      waitForVideoReady(clickedVideo, 220)
-    ]);
+    const mainText = mainVideo.getAttribute("data-view-text");
+    const clickedText = clickedVideo.getAttribute("data-view-text");
 
-    const swapAnimation = animateSwap(mainBox, clickedBox);
+    const explodeX = clickedBox.style.getPropertyValue('--explode-x');
+    const explodeY = clickedBox.style.getPropertyValue('--explode-y');
+    
+    // Calculate exact target scales for seamless handoff
+    const targetMainScale = clickedBox.getBoundingClientRect().width / mainBox.offsetWidth;
+    const targetClickedScale = mainBox.getBoundingClientRect().width / clickedBox.offsetWidth;
+
+    const transitionStyle = "transform 0.55s cubic-bezier(0.22, 1, 0.36, 1), filter 0.55s ease";
+
+    mainBox.style.transition = transitionStyle;
+    clickedBox.style.transition = transitionStyle;
+
+    // IMPORTANT: Force browser reflow to register the transition property 
+    // before we change the transform property, otherwise it teleports instantly.
+    void mainBox.offsetWidth;
+    void clickedBox.offsetWidth;
+
+    // Bring clickedBox to the front so it crosses nicely
+    clickedBox.style.zIndex = "65";
+
+    // Hide controls during the swap animation
+    mainBox.classList.add("video-playing");
+    clickedBox.classList.add("video-playing");
+
+    // Trigger visual swap
+    mainBox.style.transform = `translate(calc(-50% + ${explodeX}), calc(-50% + ${explodeY})) scale(${targetMainScale})`;
+    mainBox.style.filter = "brightness(0.78)";
+    clickedBox.style.transform = `translate(-50%, -50%) scale(${targetClickedScale})`;
+    clickedBox.style.filter = "brightness(1)";
+
+    // Wait for the animation to finish
+    await new Promise(r => setTimeout(r, 550));
 
     mainVideo.setAttribute("src", clickedSrc);
     clickedVideo.setAttribute("src", mainSrc);
+
+    if (mainText && clickedText) {
+      mainVideo.setAttribute("data-view-text", clickedText);
+      clickedVideo.setAttribute("data-view-text", mainText);
+    }
+
+    const dynamicTextNode = category.querySelector(".dynamic-video-text");
+    if (dynamicTextNode && clickedText) {
+      dynamicTextNode.textContent = clickedText;
+    }
 
     mainVideo.load();
     clickedVideo.load();
@@ -690,21 +664,33 @@ async function swapMainVideo(category, clickedBox) {
     mainVideo.muted = false;
     clickedVideo.muted = true;
 
-    [swapGhosts] = await Promise.all([
-      swapAnimation,
-      Promise.all([
-        waitForVideoReady(mainVideo),
-        waitForVideoReady(clickedVideo)
-      ])
+    // Instantly reset visual transforms
+    mainBox.style.transition = "none";
+    clickedBox.style.transition = "none";
+
+    mainBox.style.transform = "";
+    mainBox.style.filter = "";
+    clickedBox.style.transform = "";
+    clickedBox.style.filter = "";
+    clickedBox.style.zIndex = "";
+
+    // Force layout reflow so the reset happens instantly without transition
+    void mainBox.offsetWidth;
+    void clickedBox.offsetWidth;
+
+    // Remove inline transitions
+    mainBox.style.removeProperty("transition");
+    clickedBox.style.removeProperty("transition");
+
+    await Promise.all([
+      waitForVideoReady(mainVideo),
+      waitForVideoReady(clickedVideo)
     ]);
 
     playVideo(mainVideo, { restart: true, unmute: true });
+    // pulseMainBox(mainBox); // Removed to keep pure smooth swap
     syncCategoryUi(category);
   } finally {
-    mainBox.classList.remove("swap-hidden");
-    clickedBox.classList.remove("swap-hidden");
-    swapGhosts?.mainGhost.remove();
-    swapGhosts?.clickedGhost.remove();
     interactionLocked = false;
     isSwapAnimating = false;
   }
@@ -714,13 +700,15 @@ document.querySelectorAll(".main-video-box, .video-box").forEach((box) => {
   const video = getVideo(box);
   const playButton = getPlayButton(box);
   const muteButton = getMuteButton(box);
+  const fullscreenButton = box.querySelector(".main-fullscreen");
+  const volumeSlider = box.querySelector(".main-volume-slider");
 
   if (!video) return;
 
   syncBoxUi(box);
 
   box.addEventListener("click", (event) => {
-    if (event.target.closest("button") || interactionLocked) return;
+    if (event.target.closest("button") || event.target.closest("input") || interactionLocked) return;
 
     const category = box.closest(".category");
 
@@ -769,7 +757,44 @@ document.querySelectorAll(".main-video-box, .video-box").forEach((box) => {
     event.stopPropagation();
 
     video.muted = !video.muted;
+    if (!video.muted && video.volume === 0) video.volume = 1;
     syncBoxUi(box);
+  });
+
+  volumeSlider?.addEventListener("input", (event) => {
+    event.stopPropagation();
+    video.volume = volumeSlider.value;
+    if (volumeSlider.value > 0 && video.muted) {
+      video.muted = false;
+      syncBoxUi(box);
+    } else if (volumeSlider.value == 0 && !video.muted) {
+      video.muted = true;
+      syncBoxUi(box);
+    }
+  });
+
+  volumeSlider?.addEventListener("click", (event) => {
+    event.stopPropagation();
+  });
+
+  fullscreenButton?.addEventListener("click", (event) => {
+    event.stopPropagation();
+
+    video.controls = true;
+
+    if (video.requestFullscreen) {
+      video.requestFullscreen();
+    } else if (video.webkitRequestFullscreen) {
+      video.webkitRequestFullscreen();
+    } else if (video.msRequestFullscreen) {
+      video.msRequestFullscreen();
+    }
+
+    video.muted = false;
+    video.volume = 0;
+    syncBoxUi(box);
+    video.play().catch(() => {});
+    fadeVolume(video, 1, 400);
   });
 });
 
@@ -820,3 +845,19 @@ document.addEventListener("click", (event) => {
 
 applyRevealPositions();
 syncAllRevealUi();
+
+
+// ================= DYNAMIC TEXT TILT EFFECT =================
+document.querySelectorAll(".dynamic-video-text").forEach(textEl => {
+  textEl.addEventListener("mousemove", (e) => {
+    const rect = textEl.getBoundingClientRect();
+    const xNorm = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
+    const yNorm = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
+    
+    textEl.style.transform = `translate(-50%, 0) perspective(1000px) rotateX(${yNorm * -15}deg) rotateY(${xNorm * 15}deg) scale(1.08)`;
+  });
+
+  textEl.addEventListener("mouseleave", () => {
+    textEl.style.transform = `translate(-50%, 0) perspective(1000px) rotateX(0deg) rotateY(0deg) scale(1)`;
+  });
+});
