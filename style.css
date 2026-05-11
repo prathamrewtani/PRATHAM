@@ -1062,10 +1062,15 @@ video:-webkit-full-screen {
     padding: 28px 18px;
     gap: 28px;
     border-radius: 32px;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    background: rgba(255, 255, 255, 0.05);
+    box-shadow: 0 8px 30px rgba(195, 0, 255, 0.3), inset 0 0 20px rgba(255, 255, 255, 0.05);
   }
 
   .hero-text h1 {
-    font-size: 1.9rem;
+    font-size: 2.2rem;
+    line-height: 1.15;
   }
 
   .hero-text p,
@@ -1103,15 +1108,24 @@ video:-webkit-full-screen {
 
   .section-head h2,
   .contact-copy h2 {
-    font-size: 2rem;
+    font-size: 1.85rem;
+  }
+
+  .problem-card {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    background: rgba(255, 255, 255, 0.08);
   }
 
   .category {
-    padding: 22px;
+    padding: 24px;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    background: linear-gradient(145deg, rgba(42, 26, 74, 0.95), rgba(59, 38, 112, 0.95));
   }
 
   .category h3 {
-    font-size: 1.38rem;
+    font-size: 1.45rem;
   }
 
   .hero-image {
@@ -1147,7 +1161,13 @@ video:-webkit-full-screen {
   }
 
   .showcase-section .category.active .main-video-box {
-    width: min(72vw, 300px);
+    width: min(85vw, 340px);
+  }
+
+  .showcase-section .category .dynamic-video-text {
+    top: calc(50% + (min(85vw, 340px) * 16 / 9 / 2 * 1.06) + 15px);
+    font-size: 0.85rem;
+    padding: 8px 18px;
   }
 
   .showcase-section .category.active::after {
@@ -1194,6 +1214,12 @@ video:-webkit-full-screen {
   .contact-shell,
   .breakdown-card {
     padding: 22px;
+  }
+
+  .contact-form input,
+  .contact-form textarea {
+    font-size: 16px !important;
+    padding: 14px 16px;
   }
 
   .btn {

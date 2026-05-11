@@ -312,10 +312,10 @@ let lastScrollY = window.scrollY;
 function getRevealPositions() {
   if (window.innerWidth <= 640) {
     return [
-      { x: "-38vw", y: "-18vh", scale: "0.82" },
-      { x: "-38vw", y: "18vh", scale: "0.82" },
-      { x: "38vw", y: "18vh", scale: "0.82" },
-      { x: "38vw", y: "-18vh", scale: "0.82" }
+      { x: "-36vw", y: "-22vh", scale: "0.85" },
+      { x: "-36vw", y: "22vh", scale: "0.85" },
+      { x: "36vw", y: "22vh", scale: "0.85" },
+      { x: "36vw", y: "-22vh", scale: "0.85" }
     ];
   }
 
